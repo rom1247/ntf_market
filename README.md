@@ -162,15 +162,6 @@ npx hardhat test nodejs
 - 生产环境请审计合约与完整测试
 - 使用 `solhint` 与 `prettier` 保持代码规范
 
-## 贡献
-
-- 提交 PR 前请运行：`npm run typecheck`、`npm test`、`npm run lint:sol`
-- 遵循现有代码风格与目录组织
-
-## 许可证
-
-- 本项目采用 MIT 许可证。详见仓库根目录的 `LICENSE` 文件（如未提供请根据企业/个人需求添加）。
-
 ## 参考
 
 - Hardhat 文档：https://hardhat.org/docs
