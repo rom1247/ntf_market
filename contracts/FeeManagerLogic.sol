@@ -15,27 +15,12 @@ contract FeeManagerLogic is
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    struct FeeRecord {
-        address auctionContract;
-        uint256 auctionId;
-        address payToken; // address(0) = ETH
-        uint256 amount; // 实际手续费金额
-        uint256 timestamp;
-    }
-
     /// @notice 手续费
     /// @dev 单位：BP（basis points），1% = 100
     uint256 public feeBp;
 
     /// @notice 手续费接收地址
     address public feeReceiver;
-
-    /// @notice 手续费总金额
-    mapping(address => uint256) public feeTotal;
-
-    //真实场景记录会保存在链上吗，还是在链下？
-    /// @notice 手续费记录
-    FeeRecord[] public feeRecords;
 
     event FeeBpUpdated(uint256 feeBp);
     event FeeReceiverUpdated(address feeReceiver);
@@ -44,6 +29,8 @@ contract FeeManagerLogic is
         uint256 auctionId,
         address payToken,
         uint256 amount,
+        uint256 feeBp,
+        uint256 fee,
         uint256 timestamp
     );
 
@@ -84,75 +71,75 @@ contract FeeManagerLogic is
         return (amount * feeBp) / 10000;
     }
 
-    //扣除手续费
-    function deductFee(
+    //记录日志
+    function recordFee(
         address auction,
         uint256 auctionId,
         address payToken,
         uint256 amount,
         uint256 fee
-    ) external payable override nonReentrant {
-        require(amount > 0, "FeeManager: amount must be greater than 0");
-        require(fee >= 0, "FeeManager: fee must be greater than or equal to 0");
-        require(fee < amount, "FeeManager: fee must be less than to amount");
-
-        //校验手续费是否一致
-        uint256 _fee = calcFee(amount);
-        require(_fee == fee, "FeeManager: fee not match");
-        if (payToken == address(0)) {
-            // ETH
-            require(
-                msg.value == fee,
-                "FeeManager: msg.value must be equal to fee"
-            );
-        } else {
-            // 其他代币
-            IERC20(payToken).transferFrom(msg.sender, address(this), fee);
-        }
-
-        feeTotal[payToken] += fee;
-
-        FeeRecord memory feeRecord = FeeRecord({
-            auctionContract: auction,
-            auctionId: auctionId,
-            payToken: payToken,
-            amount: fee,
-            timestamp: block.timestamp
-        });
-        feeRecords.push(feeRecord);
+    ) external override nonReentrant {
         emit FeeRecordUpdated(
             auction,
             auctionId,
             payToken,
+            amount,
             fee,
+            feeBp,
             block.timestamp
         );
     }
+
+    receive() external payable {}
 
     //提现手续费
     function withdrawFee(
         address payToken,
         uint256 amount
     ) public onlyOwner nonReentrant {
-        uint256 fee = feeTotal[payToken];
-        require(fee > 0, "FeeManager: no fee to withdraw");
-        require(
-            fee >= amount,
-            "FeeManager: amount must be less than or equal to fee"
-        );
-        feeTotal[payToken] -= amount;
         if (payToken == address(0)) {
             // ETH
+            uint256 fee = payToken.balance;
+
+            require(fee > 0, "FeeManager: no  ETH fee to withdraw");
+            require(
+                fee >= amount,
+                "FeeManager: amount must be less than or equal to ETH fee"
+            );
+
             (bool success, ) = feeReceiver.call{value: amount}("");
             require(success, "FeeManager: ETH transfer failed");
         } else {
+            IERC20 token = IERC20(payToken);
+            uint256 fee = token.balanceOf(address(this));
+
+            require(fee > 0, "FeeManager: no IERC20 fee to withdraw");
+            require(
+                fee >= amount,
+                "FeeManager: amount must be less than or equal to IERC20 fee"
+            );
             // 其他代币
-            IERC20(payToken).transfer(feeReceiver, amount);
+            token.transfer(feeReceiver, amount);
         }
     }
 
     //提现全部
     function withdrawAllFee(address payToken) external onlyOwner nonReentrant {
-        withdrawFee(payToken, feeTotal[payToken]);
+        if (payToken == address(0)) {
+            // ETH
+            uint256 fee = payToken.balance;
+
+            require(fee > 0, "FeeManager: no  ETH fee to withdraw");
+
+            (bool success, ) = feeReceiver.call{value: fee}("");
+            require(success, "FeeManager: ETH transfer failed");
+        } else {
+            IERC20 token = IERC20(payToken);
+            uint256 fee = token.balanceOf(address(this));
+
+            require(fee > 0, "FeeManager: no IERC20 fee to withdraw");
+            // 其他代币
+            token.transfer(feeReceiver, fee);
+        }
     }
 }

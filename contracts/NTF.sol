@@ -44,11 +44,14 @@ contract NTF is ERC721, Ownable {
     function tokenURI(
         uint256 tokenId
     ) public view override returns (string memory) {
-        require(tokenId > _tokenIdCounter, "ERC721: token does not exist");
-
+        _requireOwned(tokenId);
         return
             string(
                 abi.encodePacked(_baseTokenURI, tokenId.toString(), ".json")
             );
+    }
+
+    function baseTokenURI() public view returns (string memory) {
+        return _baseTokenURI;
     }
 }

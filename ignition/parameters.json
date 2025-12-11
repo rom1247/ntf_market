@@ -1,0 +1,8 @@
+{
+  "parameters": {
+    "ntfName": "MyNFT",
+    "ntfSymbol": "MNFT",
+    "ntfBaseURI": "ipfs://my/",
+    "feeBp": 500
+  }
+}

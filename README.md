@@ -1,57 +1,177 @@
-# Sample Hardhat 3 Beta Project (`node:test` and `viem`)
+# NTF Market — Hardhat 3 + Viem 项目
 
-This project showcases a Hardhat 3 Beta project using the native Node.js test runner (`node:test`) and the `viem` library for Ethereum interactions.
+![Node Version](https://img.shields.io/badge/node-%3E%3D18-blue)
+![Hardhat](https://img.shields.io/badge/Hardhat-3.x-yellow)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-To learn more about the Hardhat 3 Beta, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3 Beta](https://hardhat.org/hardhat3-beta-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+本项目是一个基于 Hardhat 3 的 NFT 拍卖与手续费管理示例，使用 `viem` 与原生 `node:test` 进行集成测试，并包含 Hardhat Ignition 部署模块。
 
-## Project Overview
+**主要特性**
 
-This example project includes:
+- 使用 Hardhat 3 配置与 `@nomicfoundation/hardhat-toolbox-viem`
+- Solidity 合约：`NTF`、`NTFAuctionLogic`、`FeeManagerLogic` 等
+- 原生 `node:test` + `viem` 的 TypeScript 集成测试（见 `test/*`）
+- Ignition 部署模块：`NTFMarketModule`、`TestMockModule`
+- 支持本地 L1/OP 模拟网络与 Sepolia 部署
 
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using [`node:test`](nodejs.org/api/test.html), the new Node.js native test runner, and [`viem`](https://viem.sh/).
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
+## 目录结构
 
-## Usage
+```text
+contracts/                 Solidity 合约源码
+  ├─ NTF.sol               ERC721 + 基于 baseURI 的元数据
+  ├─ NTFAuctionLogic.sol   升级合约，支持多币种竞价与链上结算
+  ├─ NTFAuctionUtils.sol   工具库：喂价转换、精度处理
+  ├─ FeeManagerLogic.sol   升级合约：手续费计算与记录
+  ├─ IFeeManager.sol       手续费接口
+  ├─ TestERC20.sol         测试用 ERC20
+  ├─ TestMockV3Aggregator.sol  测试用 Chainlink 喂价
+  └─ TestProxy.sol         ERC1967Proxy 包装
+ignition/modules/          Hardhat Ignition 部署模块
+  ├─ NTFMarketModule.ts
+  └─ TestMockModule.ts
+ignition/parameters.json   部署参数示例
+scripts/send-op-tx.ts      OP 模拟链路交易示例
+test/NTF_test.ts           NTF 合约的 node:test 集成测试
+test/FeeManagerLogic_test.ts  FeeManager 升级与手续费逻辑测试
+test/NTFAuctionLogic_test.ts  拍卖流程与竞价逻辑测试
+test/NTFAuctionLogic_iginition_test.ts  通过 Ignition 的部署集成测试
+hardhat.config.ts          Hardhat 3 配置
+package.json               项目脚本与依赖
+tsconfig.json              TypeScript 编译配置
+.gitignore                 常见忽略规则
+```
 
-### Running Tests
+## 环境要求
 
-To run all the tests in the project, execute the following command:
+- Node.js ≥ 18
+- NPM ≥ 9（本仓库使用 `npm`，已包含 `package-lock.json`）
 
-```shell
+## 安装与初始化
+
+- 安装依赖：
+
+```bash
+npm install
+```
+
+- 编译合约与类型：
+
+```bash
+npx hardhat compile
+```
+
+## 常用命令
+
+- 编译：
+
+```bash
+npx hardhat compile
+```
+
+- 运行全部测试：
+
+```bash
 npx hardhat test
 ```
 
-You can also selectively run the Solidity or `node:test` tests:
+- 仅运行 Solidity 测试：
 
-```shell
+```bash
 npx hardhat test solidity
+```
+
+- 仅运行 node:test 集成测试：
+
+```bash
 npx hardhat test nodejs
 ```
 
-### Make a deployment to Sepolia
+- TypeScript 类型检查：
 
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
-
-To run the deployment to a local chain:
-
-```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
+```bash
+npm run typecheck
 ```
 
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
+- 代码格式化（TS/Solidity/JSON/MD）：
 
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
-
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
-
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
+```bash
+npx prettier --write "**/*.{ts,sol,md,json}"
 ```
 
-After setting the variable, you can run the deployment with the Sepolia network:
+- Solidity 静态检查：
 
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
+```bash
+npx solhint "contracts/**/*.sol"
 ```
+
+## 网络与部署
+
+Hardhat 已配置以下网络（见 `hardhat.config.ts`）：
+
+- `hardhatMainnet`：本地 L1 模拟（EDR simulated）
+- `hardhatOp`：本地 OP 模拟（EDR simulated）
+- `sepolia`：HTTP 远程网络（需环境变量）
+
+环境变量（推荐使用系统环境变量方式）：
+
+- `SEPOLIA_RPC_URL`：Sepolia RPC 访问地址
+- `SEPOLIA_PRIVATE_KEY`：用于部署的账户私钥（请确保账户已有余额）
+
+Ignition 部署示例（默认使用 `ignition/parameters.json` 参数）：
+
+- 本地部署：
+
+```bash
+npx hardhat ignition deploy ignition/modules/NTFMarketModule.ts --parameters ignition/parameters.json
+```
+
+- 部署到 Sepolia：
+
+```bash
+npx hardhat ignition deploy --network sepolia ignition/modules/NTFMarketModule.ts --parameters ignition/parameters.json
+```
+
+## OP 模拟网络交易示例
+
+使用 `scripts/send-op-tx.ts` 在本地 OP 模拟网络发送交易：
+
+```bash
+npx hardhat run scripts/send-op-tx.ts
+```
+
+## 测试说明
+
+- TypeScript 集成测试位于 `test/*`，使用 `node:test` 与 `viem`
+
+```bash
+npx hardhat test
+# 或仅运行 node:test 集成测试
+npx hardhat test nodejs
+```
+
+## 项目目标与合约概览
+
+- `NTF.sol`：基于 ERC721 的 NFT，实现 `baseURI` 拼接 `tokenURI`
+- `NTFAuctionLogic.sol`：支持多币种竞价与喂价（Chainlink），结束后结算至卖家并记录手续费
+- `FeeManagerLogic.sol`：按 BP 计算手续费、记录日志，支持提取手续费
+- `NTFAuctionUtils/PriceConverter`：工具库，统一精度并将价格转换到 USD 维度
+
+## 安全与规范
+
+- 请勿泄露私钥，建议通过环境变量或安全的密钥管理工具注入
+- 生产环境请审计合约与完整测试
+- 使用 `solhint` 与 `prettier` 保持代码规范
+
+## 贡献
+
+- 提交 PR 前请运行：`npm run typecheck`、`npm test`、`npm run lint:sol`
+- 遵循现有代码风格与目录组织
+
+## 许可证
+
+- 本项目采用 MIT 许可证。详见仓库根目录的 `LICENSE` 文件（如未提供请根据企业/个人需求添加）。
+
+## 参考
+
+- Hardhat 文档：https://hardhat.org/docs
+- Viem 文档：https://viem.sh

@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import "hardhat/console.sol";
 
 library NTFAuctionUtils {
     address public constant NATIVE_TOKEN = address(0);
@@ -52,15 +53,25 @@ library PriceConverter {
         require(price > 0, "PriceConverter: Price is zero, invalid price feed");
         uint256 feedDecimals = feed.decimals(); //喂价的精度
         uint256 tokenDecimals = token.getTokenDecimals(); //token的精度
-
+        console.log("tokenDecimals", tokenDecimals);
+        console.log("feedDecimals", feedDecimals);
+        console.log("usdDecimals", usdDecimals);
+        
         // 转换为相同精度的金额
-        uint256 divisor = 10 **(tokenDecimals + feedDecimals -  usdDecimals);
+        uint256 divisor = 10 ** (tokenDecimals + feedDecimals - usdDecimals);
+        console.log("amount", amount);
+        console.log("price", uint256(price));
+        console.log("divisor", divisor);
+
         return (amount * uint256(price)) / divisor;
     }
 
     /// @notice 重载：默认返回 6 decimals 的 USD
-    function toUSD(address token, uint256 amount, AggregatorV3Interface feed  ) internal view returns (uint256) {
+    function toUSD(
+        address token,
+        uint256 amount,
+        AggregatorV3Interface feed
+    ) internal view returns (uint256) {
         return toUSD(token, amount, feed, 6);
     }
-
 }

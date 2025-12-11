@@ -3,11 +3,13 @@ pragma solidity ^0.8.20;
 
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "hardhat/console.sol";
 import "./NTFAuctionUtils.sol";
 import "./IFeeManager.sol";
 
@@ -15,7 +17,8 @@ contract NTFAuctionLogic is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    ERC721Holder
 {
     using PriceConverter for address;
     using NTFAuctionUtils for address;
@@ -115,11 +118,20 @@ contract NTFAuctionLogic is
     function initializeFeeder(
         uint256 auctionId,
         address[] memory payTokens,
-        address feeder
+        address[] memory feeders
     ) internal {
+        //检查支付币种和喂价合约地址是否对应
+        require(
+            payTokens.length > 0,
+            "Pay tokens must have at least one element"
+        );
+        require(
+            payTokens.length == feeders.length,
+            "Pay tokens and feeders must have the same length"
+        );
         for (uint256 i = 0; i < payTokens.length; i++) {
             auctionFeeders[auctionId][payTokens[i]] = AggregatorV3Interface(
-                feeder
+                feeders[i]
             );
         }
     }
@@ -132,7 +144,7 @@ contract NTFAuctionLogic is
     /// @param _startTime 开始时间
     /// @param _endTime 结束时间
     /// @param _payTokens 支持的支付币种
-    /// @param _feeder 喂价合约地址
+    /// @param _feeders 喂价合约地址  必须和_payTokens对应
     /// @return auctionId 拍卖id
     function createAuction(
         string memory _name,
@@ -143,7 +155,7 @@ contract NTFAuctionLogic is
         uint256 _startTime,
         uint256 _endTime,
         address[] memory _payTokens,
-        address _feeder
+        address[] memory _feeders
     ) external nonReentrant returns (uint256) {
         // nonReentrant 这个是防止重入攻击
 
@@ -175,10 +187,10 @@ contract NTFAuctionLogic is
         //检查起始价格是否大于0
         require(_startingPrice > 0, "Starting price must be greater than 0");
 
-        uint256 auctionId = nextAuctionId++;
+        uint256 auctionId = ++nextAuctionId;
 
         //初始化喂价合约
-        initializeFeeder(auctionId, _payTokens, _feeder);
+        initializeFeeder(auctionId, _payTokens, _feeders);
 
         //检查拍卖起始价格币种是否支持支付币种的喂价类型
         AggregatorV3Interface payTokenFeeder = auctionFeeders[auctionId][
@@ -259,7 +271,8 @@ contract NTFAuctionLogic is
         );
         //获取当前最高出价
         uint256 usdHighestBid = getCurrentUsdHighestBid(auctionId);
-
+        console.log("usdHighestBid", usdHighestBid);
+        console.log("usdBidAmount", usdBidAmount);
         require(usdBidAmount > usdHighestBid, "Bid amount must be higher");
 
         //出价成功，如果是 erc20那么先转入合约
@@ -341,25 +354,30 @@ contract NTFAuctionLogic is
             //计算手续费
             uint256 fee = feeManager.calcFee(highestBid);
             uint256 sellerAmount = highestBid - fee;
-            feeManager.deductFee(
+
+            if (payToken.isNativeToken()) {
+                (bool successf, ) = address(feeManager).call{value: fee}("");
+                require(successf, "ETH fee transfer failed");
+                (bool success, ) = seller.call{value: sellerAmount}("");
+                require(success, "ETH transfer failed");
+            } else {
+                //收取手续费
+                bool successf = IERC20(payToken).transfer(
+                    address(feeManager),
+                    fee
+                );
+                require(successf, "ERC20 fee transfer failed");
+
+                bool success = IERC20(payToken).transfer(seller, sellerAmount);
+                require(success, "ERC20 transfer failed");
+            }
+            feeManager.recordFee(
                 address(this),
                 auctionId,
                 payToken,
                 highestBid,
                 fee
             );
-            if (payToken.isNativeToken()) {
-                //如果是eth 则直接转账
-                (bool success, ) = seller.call{value: sellerAmount}("");
-                require(success, "ETH transfer failed");
-            } else {
-                bool success = IERC20(payToken).transferFrom(
-                    address(this),
-                    seller,
-                    sellerAmount
-                );
-                require(success, "ERC20 transfer failed");
-            }
         }
 
         emit AuctionEnded(
