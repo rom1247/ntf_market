@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "compile": "hardhat compile",
+    "compile": "hardhat compile && hardhat gen:go-bindings",
     "test": "hardhat test",
     "test:solidity": "hardhat test solidity",
     "test:node": "hardhat test nodejs",
@@ -12,11 +12,13 @@
     "run:op": "hardhat run scripts/send-op-tx.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "format": "prettier --write \"**/*.{ts,sol,md,json}\"",
-    "lint:sol": "solhint \"contracts/**/*.sol\""
+    "lint:sol": "solhint \"contracts/**/*.sol\"",
+    "compile:go": "hardhat gen:go-bindings"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^4.0.3",
     "@nomicfoundation/hardhat-ignition": "^3.0.5",
+    "@nomicfoundation/hardhat-keystore": "^3.0.3",
     "@nomicfoundation/hardhat-network-helpers": "^3.0.3",
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.1",
     "@nomicfoundation/hardhat-typechain": "^3.0.1",

@@ -1,5 +1,5 @@
 import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
-import { configVariable, defineConfig } from "hardhat/config";
+import { defineConfig, task, configVariable } from "hardhat/config";
 
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
@@ -46,4 +46,9 @@ export default defineConfig({
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
     },
   },
+  tasks: [
+    task("gen:go-bindings", "Generate Go bindings from artifacts")
+      .setAction(() => import("./tasks/compile-bindings.js"))
+      .build(),
+  ],
 });

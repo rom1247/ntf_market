@@ -15,12 +15,12 @@ contract NTF is ERC721, Ownable {
     address private admin;
 
     constructor(
-        string memory name,
-        string memory symbol,
-        string memory baseTokenURI,
+        string memory name_,
+        string memory symbol_,
+        string memory baseTokenURI_,
         address admin_
-    ) ERC721(name, symbol) Ownable(admin_) {
-        _baseTokenURI = baseTokenURI;
+    ) ERC721(name_, symbol_) Ownable(admin_) {
+        _baseTokenURI = baseTokenURI_;
     }
 
     //铸币
